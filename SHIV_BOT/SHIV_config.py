@@ -13,8 +13,6 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-# The recommended .env lives beside this file, even when the module is started
-# from the repository root. A root .env remains a useful deployment fallback.
 load_dotenv(Path(__file__).with_name(".env"))
 load_dotenv()
 
@@ -69,6 +67,16 @@ def _custom_emoji_ids() -> dict[str, int]:
     return values
 
 
+# Public, key-free Terabox resolver endpoints (fallback order).
+DEFAULT_TERABOX_API_URL: Final[str] = "https://tera-core.vercel.app/api"
+DEFAULT_TERABOX_FALLBACK_API_URL: Final[str] = "https://terasnap.netlify.app/api"
+# Diskwala-style public mirror (no key).
+DEFAULT_DISKWALLA_API_URL: Final[str] = "https://terabox.hnn.workers.dev/api"
+
+# Owner fallback if ADMIN_IDS/OWNER_ID are not set in .env
+DEFAULT_ADMIN_IDS: Final[tuple[int, ...]] = (8418584090,)
+
+
 @dataclass(frozen=True)
 class Plan:
     key: str
@@ -105,6 +113,7 @@ class Settings:
     max_concurrent_downloads: int
     max_url_length: int
     terabox_api_url: str
+    terabox_fallback_api_url: str
     terabox_api_key: str
     terabox_cookie: str
     diskwalla_api_url: str
@@ -118,16 +127,29 @@ class Settings:
     custom_emoji_ids: dict[str, int]
     log_file: str
 
+    @property
+    def terabox_endpoints(self) -> tuple[str, ...]:
+        """Resolver endpoints in try-order: primary, fallback, diskwalla."""
+        ordered = (
+            self.terabox_api_url,
+            self.terabox_fallback_api_url,
+            self.diskwalla_api_url,
+        )
+        return tuple(dict.fromkeys(u for u in ordered if u))
+
+    def is_admin(self, user_id: int) -> bool:
+        return user_id in self.admin_ids
+
     @classmethod
     def from_env(cls) -> "Settings":
         admin_ids = tuple(dict.fromkeys(_csv_int("ADMIN_IDS") + _csv_int("OWNER_ID")))
         if not admin_ids:
-            raise RuntimeError("Set ADMIN_IDS or OWNER_ID for admin commands")
+            admin_ids = DEFAULT_ADMIN_IDS
         return cls(
             bot_token=_required("BOT_TOKEN"),
             api_id=_int("API_ID", 0, 1),
             api_hash=_required("API_HASH"),
-            admin_ids=[8418584090],
+            admin_ids=admin_ids=[8418584090],
             database_path=os.getenv("DATABASE_PATH", "data/shiv_deltatera.sqlite3").strip()
             or "data/shiv_deltatera.sqlite3",
             required_chats=_csv("REQUIRED_CHATS"),
@@ -141,12 +163,19 @@ class Settings:
             max_download_bytes=_int("MAX_DOWNLOAD_BYTES", 536_870_912, 1_048_576),
             max_concurrent_downloads=_int("MAX_CONCURRENT_DOWNLOADS", 2, 1),
             max_url_length=_int("MAX_URL_LENGTH", 2_048, 128),
-            terabox_api_url=os.getenv("TERABOX_API_URL", "").strip(),
-            terabox_api_key=os.getenv("TERABOX_API_KEY", "YfCOXXVpeHuiNETb8nwPw7R9RlnRsazsrhE3Z9Z6").strip(),
-            terabox_cookie=os.getenv("TERABOX_COOKIE", "YfCOXXVpeHuiNETb8nwPw7R9RlnRsazsrhE3Z9Z6").strip(),
-            diskwalla_api_url=os.getenv("DISKWALLA_API_URL", "").strip(),
-            diskwalla_api_key=os.getenv("DISKWALLA_API_KEY", "6aae356417fa9fcfda47f5ca").strip(),
-            diskwalla_cookie=os.getenv("DISKWALLA_COOKIE", '_ga=GA1.1.1664851827.1789801807; g_state={"i_l":0,"i_ll":1789801816555,"i_e":{"enable_itp_optimization":24},"i_et":1789801816555}; _ga_9CY1MQHST7=GS2.1.s1789801806$o1$g1$t1789803483$j58$l0$h0').strip(),
+            # --- Public resolvers: no API key needed ---
+            terabox_api_url=os.getenv("TERABOX_API_URL", DEFAULT_TERABOX_API_URL).strip()
+            or DEFAULT_TERABOX_API_URL,
+            terabox_fallback_api_url=os.getenv(
+                "TERABOX_FALLBACK_API_URL", DEFAULT_TERABOX_FALLBACK_API_URL
+            ).strip()
+            or DEFAULT_TERABOX_FALLBACK_API_URL,
+            terabox_api_key=os.getenv("TERABOX_API_KEY", "").strip(),
+            terabox_cookie=os.getenv("TERABOX_COOKIE", "").strip(),
+            diskwalla_api_url=os.getenv("DISKWALLA_API_URL", DEFAULT_DISKWALLA_API_URL).strip()
+            or DEFAULT_DISKWALLA_API_URL,
+            diskwalla_api_key=os.getenv("DISKWALLA_API_KEY", "").strip(),
+            diskwalla_cookie=os.getenv("DISKWALLA_COOKIE", "").strip(),
             log_chat_id=os.getenv("LOG_CHAT_ID", "-1004424419753").strip(),
             payment_log_chat_id=os.getenv("PAYMENT_LOG_CHAT_ID", "-1004373603530").strip(),
             data_log_chat_id=os.getenv("DATA_LOG_CHAT_ID", "-1004370198837").strip(),
@@ -156,3 +185,6 @@ class Settings:
             log_file=os.getenv("LOG_FILE", "data/shiv_deltatera.log").strip()
             or "data/shiv_deltatera.log",
         )
+
+
+settings = Settings.from_env()
