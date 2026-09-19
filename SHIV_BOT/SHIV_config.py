@@ -127,7 +127,7 @@ class Settings:
             bot_token=_required("BOT_TOKEN"),
             api_id=_int("API_ID", 0, 1),
             api_hash=_required("API_HASH"),
-            admin_ids=8418584090
+            admin_ids=[8418584090],
             database_path=os.getenv("DATABASE_PATH", "data/shiv_deltatera.sqlite3").strip()
             or "data/shiv_deltatera.sqlite3",
             required_chats=_csv("REQUIRED_CHATS"),
@@ -146,7 +146,7 @@ class Settings:
             terabox_cookie=os.getenv("TERABOX_COOKIE", "YfCOXXVpeHuiNETb8nwPw7R9RlnRsazsrhE3Z9Z6").strip(),
             diskwalla_api_url=os.getenv("DISKWALLA_API_URL", "").strip(),
             diskwalla_api_key=os.getenv("DISKWALLA_API_KEY", "6aae356417fa9fcfda47f5ca").strip(),
-            diskwalla_cookie=os.getenv("DISKWALLA_COOKIE", "").strip(),
+            diskwalla_cookie=os.getenv("DISKWALLA_COOKIE", '_ga=GA1.1.1664851827.1789801807; g_state={"i_l":0,"i_ll":1789801816555,"i_e":{"enable_itp_optimization":24},"i_et":1789801816555}; _ga_9CY1MQHST7=GS2.1.s1789801806$o1$g1$t1789803483$j58$l0$h0').strip(),
             log_chat_id=os.getenv("LOG_CHAT_ID", "-1004424419753").strip(),
             payment_log_chat_id=os.getenv("PAYMENT_LOG_CHAT_ID", "-1004373603530").strip(),
             data_log_chat_id=os.getenv("DATA_LOG_CHAT_ID", "-1004370198837").strip(),
