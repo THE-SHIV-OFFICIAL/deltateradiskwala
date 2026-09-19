@@ -149,7 +149,7 @@ class Settings:
             bot_token=_required("BOT_TOKEN"),
             api_id=_int("API_ID", 0, 1),
             api_hash=_required("API_HASH"),
-            admin_ids=admin_ids=[8418584090],
+            admin_ids=admin_ids,
             database_path=os.getenv("DATABASE_PATH", "data/shiv_deltatera.sqlite3").strip()
             or "data/shiv_deltatera.sqlite3",
             required_chats=_csv("REQUIRED_CHATS"),
