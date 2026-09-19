@@ -1,4 +1,4 @@
-# SHIV DeltaTera Bot
+# SHIV  Bot
 
 Python-only Telegram bot for TeraBox and DiskWalla links, direct media links,
 Telegram file saving, quotas, referrals, UPI payment review, and admin tools.
