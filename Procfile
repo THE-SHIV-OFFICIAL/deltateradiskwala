@@ -1,0 +1,1 @@
+worker: python -m SHIV_BOT.SHIV_BOT

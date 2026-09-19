@@ -1,0 +1,158 @@
+"""Environment-backed configuration for the SHIV DeltaTera bot.
+
+No credentials are stored in source code. Copy .env.example to .env and
+provide the values required for the features you enable.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final
+
+from dotenv import load_dotenv
+
+# The recommended .env lives beside this file, even when the module is started
+# from the repository root. A root .env remains a useful deployment fallback.
+load_dotenv(Path(__file__).with_name(".env"))
+load_dotenv()
+
+
+def _required(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def _int(name: str, default: int, minimum: int = 0) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if value < minimum:
+        raise RuntimeError(f"{name} must be >= {minimum}")
+    return value
+
+
+def _csv_int(name: str) -> tuple[int, ...]:
+    values: list[int] = []
+    for item in os.getenv(name, "").split(","):
+        item = item.strip()
+        if item:
+            try:
+                values.append(int(item))
+            except ValueError as exc:
+                raise RuntimeError(f"{name} contains an invalid Telegram ID") from exc
+    return tuple(dict.fromkeys(values))
+
+
+def _csv(name: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in os.getenv(name, "").split(",") if item.strip())
+
+
+def _custom_emoji_ids() -> dict[str, int]:
+    """Read ``key:id,key:id`` custom emoji configuration safely."""
+    raw = os.getenv("CUSTOM_EMOJI_IDS", "").strip()
+    if not raw:
+        return {}
+    values: dict[str, int] = {}
+    for item in raw.split(","):
+        key, separator, value = item.strip().partition(":")
+        if not separator or not key or not value.isdigit():
+            raise RuntimeError(
+                "CUSTOM_EMOJI_IDS must use key:numeric_id pairs separated by commas"
+            )
+        values[key.lower()] = int(value)
+    return values
+
+
+@dataclass(frozen=True)
+class Plan:
+    key: str
+    title: str
+    days: int
+    price_inr: int
+    downloads_per_day: int | None
+    uploads_per_day: int | None
+
+
+PLANS: Final[dict[str, Plan]] = {
+    "pro_7d": Plan("pro_7d", "Pro · 7 days", 7, 15, 17, 15),
+    "pro_30d": Plan("pro_30d", "Pro · 30 days", 30, 27, 17, 15),
+    "beta_30d": Plan("beta_30d", "Beta VIP · 30 days", 30, 69, None, None),
+}
+
+
+@dataclass(frozen=True)
+class Settings:
+    bot_token: str
+    api_id: int
+    api_hash: str
+    admin_ids: tuple[int, ...]
+    database_path: str
+    required_chats: tuple[str, ...]
+    support_url: str
+    updates_url: str
+    bot_username: str
+    upi_id: str
+    upi_name: str
+    qr_expiry_minutes: int
+    media_auto_delete_minutes: int
+    max_download_bytes: int
+    max_concurrent_downloads: int
+    max_url_length: int
+    terabox_api_url: str
+    terabox_api_key: str
+    terabox_cookie: str
+    diskwalla_api_url: str
+    diskwalla_api_key: str
+    diskwalla_cookie: str
+    log_chat_id: str
+    payment_log_chat_id: str
+    data_log_chat_id: str
+    watermark_text: str
+    privacy_url: str
+    custom_emoji_ids: dict[str, int]
+    log_file: str
+
+    @classmethod
+    def from_env(cls) -> "Settings":
+        admin_ids = tuple(dict.fromkeys(_csv_int("ADMIN_IDS") + _csv_int("OWNER_ID")))
+        if not admin_ids:
+            raise RuntimeError("Set ADMIN_IDS or OWNER_ID for admin commands")
+        return cls(
+            bot_token=_required("BOT_TOKEN"),
+            api_id=_int("API_ID", 0, 1),
+            api_hash=_required("API_HASH"),
+            admin_ids=admin_ids,
+            database_path=os.getenv("DATABASE_PATH", "data/shiv_deltatera.sqlite3").strip()
+            or "data/shiv_deltatera.sqlite3",
+            required_chats=_csv("REQUIRED_CHATS"),
+            support_url=os.getenv("SUPPORT_URL", "").strip(),
+            updates_url=os.getenv("UPDATES_URL", "").strip(),
+            bot_username=os.getenv("BOT_USERNAME", "").strip().lstrip("@"),
+            upi_id=os.getenv("UPI_ID", "").strip(),
+            upi_name=os.getenv("UPI_NAME", "").strip(),
+            qr_expiry_minutes=_int("QR_EXPIRY_MINUTES", 10, 1),
+            media_auto_delete_minutes=_int("MEDIA_AUTO_DELETE_MINUTES", 5, 0),
+            max_download_bytes=_int("MAX_DOWNLOAD_BYTES", 536_870_912, 1_048_576),
+            max_concurrent_downloads=_int("MAX_CONCURRENT_DOWNLOADS", 2, 1),
+            max_url_length=_int("MAX_URL_LENGTH", 2_048, 128),
+            terabox_api_url=os.getenv("TERABOX_API_URL", "").strip(),
+            terabox_api_key=os.getenv("TERABOX_API_KEY", "").strip(),
+            terabox_cookie=os.getenv("TERABOX_COOKIE", "").strip(),
+            diskwalla_api_url=os.getenv("DISKWALLA_API_URL", "").strip(),
+            diskwalla_api_key=os.getenv("DISKWALLA_API_KEY", "").strip(),
+            diskwalla_cookie=os.getenv("DISKWALLA_COOKIE", "").strip(),
+            log_chat_id=os.getenv("LOG_CHAT_ID", "").strip(),
+            payment_log_chat_id=os.getenv("PAYMENT_LOG_CHAT_ID", "").strip(),
+            data_log_chat_id=os.getenv("DATA_LOG_CHAT_ID", "").strip(),
+            watermark_text=os.getenv("WATERMARK_TEXT", "SHIV DELTATERA").strip(),
+            privacy_url=os.getenv("PRIVACY_URL", "").strip(),
+            custom_emoji_ids=_custom_emoji_ids(),
+            log_file=os.getenv("LOG_FILE", "data/shiv_deltatera.log").strip()
+            or "data/shiv_deltatera.log",
+        )
